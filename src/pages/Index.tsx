@@ -53,6 +53,14 @@ const ChatApp: React.FC = () => {
             </TabsList>
             <TabsContent value="create">
               <CreateRoomForm />
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <h3 className="font-medium mb-2">How others can join your room:</h3>
+                <ol className="list-decimal pl-5 space-y-2 text-sm">
+                  <li>When you create a room, you'll get a 6-character room code</li>
+                  <li>Share this code with others</li>
+                  <li>They can enter this code in the "Join Room" tab</li>
+                </ol>
+              </div>
             </TabsContent>
             <TabsContent value="join">
               <JoinRoomForm />

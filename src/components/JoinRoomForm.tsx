@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChat } from '@/contexts/ChatContext';
 import { useToast } from "@/components/ui/use-toast";
-import { Share } from "lucide-react";
+import { Share, QrCode } from "lucide-react";
 import { 
   Dialog,
   DialogContent,
@@ -91,6 +91,9 @@ const JoinRoomForm: React.FC = () => {
               maxLength={6}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Ask the room host for their 6-character code to join.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="userName">Your Name</Label>
