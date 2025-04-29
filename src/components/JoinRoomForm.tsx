@@ -6,11 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChat } from '@/contexts/ChatContext';
 import { useToast } from "@/components/ui/use-toast";
+import { Share } from "lucide-react";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const JoinRoomForm: React.FC = () => {
   const [roomCode, setRoomCode] = useState('');
   const [userName, setUserName] = useState('');
-  const { joinRoom } = useChat();
+  const { joinRoom, activeRoom } = useChat();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -33,6 +42,32 @@ const JoinRoomForm: React.FC = () => {
         description: "Room not found or already ended",
         variant: "destructive"
       });
+    }
+  };
+
+  const copyRoomCodeToClipboard = () => {
+    if (!activeRoom) return;
+    
+    navigator.clipboard.writeText(activeRoom.code);
+    toast({
+      title: "Copied!",
+      description: "Room code copied to clipboard",
+    });
+  };
+
+  const shareRoomCode = () => {
+    if (!activeRoom) return;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `Join my chat room: ${activeRoom.name}`,
+        text: `Join my chat room with code: ${activeRoom.code}`,
+        url: window.location.href,
+      }).catch(err => {
+        console.error('Error sharing:', err);
+      });
+    } else {
+      copyRoomCodeToClipboard();
     }
   };
 
@@ -70,6 +105,44 @@ const JoinRoomForm: React.FC = () => {
               You'll be identified by the first letter of your name.
             </p>
           </div>
+          {activeRoom && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" className="w-full flex gap-2">
+                  <Share size={16} />
+                  Share Room Code
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Share Room Code</DialogTitle>
+                  <DialogDescription>
+                    Share this code with others to join your chat room.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-4 py-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="share-code">Room Code</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="share-code" 
+                        value={activeRoom.code} 
+                        readOnly 
+                        className="font-mono text-center text-lg" 
+                      />
+                      <Button onClick={copyRoomCodeToClipboard} variant="outline">
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                  <Button onClick={shareRoomCode} className="w-full">
+                    <Share size={16} className="mr-2" /> 
+                    Share
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full">
