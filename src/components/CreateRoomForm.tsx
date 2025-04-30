@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,28 +7,49 @@ import { useChat } from '@/contexts/ChatContext';
 import { useToast } from "@/components/ui/use-toast";
 
 const CreateRoomForm: React.FC = () => {
-  const [roomName, setRoomName] = useState('');
-  const [hostName, setHostName] = useState('');
+  const [roomName, setRoomName] = useState<string>('');
+  const [hostName, setHostName] = useState<string>('');
   const { createRoom } = useChat();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!roomName.trim() || !hostName.trim()) {
+    // Enhanced validation
+    if (!roomName.trim()) {
       toast({
         title: "Error",
-        description: "Room name and host name are required",
+        description: "Room name is required",
         variant: "destructive"
       });
       return;
     }
     
-    createRoom(roomName, hostName);
-    toast({
-      title: "Success",
-      description: "Room created successfully!",
-    });
+    if (!hostName.trim()) {
+      toast({
+        title: "Error",
+        description: "Host name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Create the room
+      const newRoom = createRoom(roomName.trim(), hostName.trim());
+      
+      toast({
+        title: "Success",
+        description: `Room created successfully! Your code is ${newRoom.code}`,
+      });
+    } catch (error) {
+      console.error("Error creating room:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create room. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -50,6 +70,7 @@ const CreateRoomForm: React.FC = () => {
               value={roomName}
               onChange={(e) => setRoomName(e.target.value)}
               required
+              aria-required="true"
             />
           </div>
           <div className="space-y-2">
@@ -60,6 +81,7 @@ const CreateRoomForm: React.FC = () => {
               value={hostName}
               onChange={(e) => setHostName(e.target.value)}
               required
+              aria-required="true"
             />
             <p className="text-xs text-muted-foreground">
               You'll be identified as "H" in the chat.
