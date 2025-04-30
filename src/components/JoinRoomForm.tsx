@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,7 @@ import {
 const JoinRoomForm: React.FC = () => {
   const [roomCode, setRoomCode] = useState('');
   const [userName, setUserName] = useState('');
-  const { joinRoom, activeRoom } = useChat();
+  const { joinRoom, activeRoom, savedRooms } = useChat();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,12 +33,27 @@ const JoinRoomForm: React.FC = () => {
       return;
     }
     
-    const success = joinRoom(roomCode.trim().toUpperCase(), userName);
+    // Check if room exists in savedRooms
+    const formattedCode = roomCode.trim().toUpperCase();
+    const roomExists = savedRooms.some(room => room.code === formattedCode && !room.endedAt);
+    const isActiveRoomWithCode = activeRoom?.code === formattedCode && !activeRoom?.endedAt;
+    
+    if (!roomExists && !isActiveRoomWithCode) {
+      toast({
+        title: "Error",
+        description: "Room not found or already ended",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Attempt to join room
+    const success = joinRoom(formattedCode, userName);
     
     if (!success) {
       toast({
         title: "Error",
-        description: "Room not found or already ended",
+        description: "Could not join room. Your name might be taken or the room might be full.",
         variant: "destructive"
       });
     }
