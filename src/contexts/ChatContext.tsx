@@ -142,8 +142,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Join an existing room
   const joinRoom = (code: string, userName: string): boolean => {
-    // Check if the room exists in active room or saved rooms
-    if (activeRoom && activeRoom.code === code && !activeRoom.endedAt) {
+    // Check if the room exists and is active
+    if (activeRoom?.code === code) {
       const userId = nanoid();
       const displayChar = getDisplayChar(userName, activeRoom.participants);
       
