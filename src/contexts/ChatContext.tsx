@@ -142,60 +142,71 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Join an existing room
   const joinRoom = (code: string, userName: string): boolean => {
-    // Check if the room exists and is active
-    if (activeRoom?.code === code) {
-      const userId = nanoid();
-      const displayChar = getDisplayChar(userName, activeRoom.participants);
-      
-      const user: User = {
-        id: userId,
-        name: userName,
-        displayChar,
-        role: 'participant',
-      };
-      
-      const updatedParticipants = [...activeRoom.participants, user];
-      const systemMessage: Message = {
-        id: nanoid(),
-        senderId: 'system',
-        senderDisplayChar: 'S',
-        content: `${displayChar} joined the room`,
-        timestamp: Date.now(),
-        isSystem: true
-      };
-      
-      const updatedMessages = [...activeRoom.messages, systemMessage];
-      
-      setCurrentUser(user);
-      setActiveRoom({
-        ...activeRoom,
-        participants: updatedParticipants,
-        messages: updatedMessages,
-      });
-      
-      return true;
-    }
+    // Validate input parameters
+    if (!code || !userName || userName.trim().length === 0) return false;
+
+    // Check if the room exists, is active, and not ended
+    if (!activeRoom || activeRoom.code !== code || activeRoom.endedAt) return false;
     
-    return false;
+    // Check if user with same name already exists
+    const existingUser = activeRoom.participants.find(
+      p => p.name.toLowerCase() === userName.trim().toLowerCase()
+    );
+    if (existingUser) return false;
+
+    // Create new user
+    const userId = nanoid();
+    const displayChar = getDisplayChar(userName, activeRoom.participants);
+    
+    const user: User = {
+      id: userId,
+      name: userName.trim(),
+      displayChar,
+      role: 'participant',
+    };
+    
+    // Update room state
+    const systemMessage: Message = {
+      id: nanoid(),
+      senderId: 'system',
+      senderDisplayChar: 'S',
+      content: `${displayChar} joined the room`,
+      timestamp: Date.now(),
+      isSystem: true
+    };
+    
+    setCurrentUser(user);
+    setActiveRoom({
+      ...activeRoom,
+      participants: [...activeRoom.participants, user],
+      messages: [...activeRoom.messages, systemMessage],
+    });
+    
+    return true;
   };
 
   // Send a message in the active room
-  const sendMessage = (content: string) => {
-    if (!activeRoom || !currentUser) return;
+  const sendMessage = (content: string): boolean => {
+    // Validate input and state
+    if (!content || content.trim().length === 0) return false;
+    if (!activeRoom || !currentUser) return false;
+    if (activeRoom.endedAt) return false;
     
+    // Create and add new message
     const newMessage: Message = {
       id: nanoid(),
       senderId: currentUser.id,
       senderDisplayChar: currentUser.displayChar,
-      content,
+      content: content.trim(),
       timestamp: Date.now(),
     };
     
-    const updatedMessages = [...activeRoom.messages, newMessage];
     setActiveRoom({
       ...activeRoom,
-      messages: updatedMessages,
+      messages: [...activeRoom.messages, newMessage],
     });
+    
+    return true;
   };
 
   // End the active room
