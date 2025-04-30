@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 
@@ -88,7 +87,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedRooms.length > 0) {
       localStorage.setItem('savedRooms', JSON.stringify(savedRooms));
     }
-  }, [savedRooms]);
+  }, []);
 
   // Generate a display character from a name
   const getDisplayChar = (name: string, participants: User[]): string => {
@@ -137,6 +136,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setCurrentUser(host);
     setActiveRoom(newRoom);
+    setSavedRooms(prev => [...prev]);
     return newRoom;
   };
 
@@ -145,18 +145,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Validate input parameters
     if (!code || !userName || userName.trim().length === 0) return false;
 
-    // Check if the room exists, is active, and not ended
-    if (!activeRoom || activeRoom.code !== code || activeRoom.endedAt) return false;
+    // Find the room with the given code
+    const roomToJoin = savedRooms.find(
+      room => room.code === code && !room.endedAt
+    );
+
+    // If room exists in saved rooms, activate it
+    if (roomToJoin) {
+      setActiveRoom(roomToJoin);
+    }
+
+    // Check if the room exists in active room or saved rooms
+    const targetRoom = activeRoom?.code === code ? activeRoom : roomToJoin;
+    
+    if (!targetRoom || targetRoom.endedAt) return false;
     
     // Check if user with same name already exists
-    const existingUser = activeRoom.participants.find(
+    const existingUser = targetRoom.participants.find(
       p => p.name.toLowerCase() === userName.trim().toLowerCase()
     );
     if (existingUser) return false;
 
     // Create new user
     const userId = nanoid();
-    const displayChar = getDisplayChar(userName, activeRoom.participants);
+    const displayChar = getDisplayChar(userName, targetRoom.participants);
     
     const user: User = {
       id: userId,
@@ -174,13 +186,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timestamp: Date.now(),
       isSystem: true
     };
+
+    const updatedRoom = {
+      ...targetRoom,
+      participants: [...targetRoom.participants, user],
+      messages: [...targetRoom.messages, systemMessage],
+    };
     
     setCurrentUser(user);
-    setActiveRoom({
-      ...activeRoom,
-      participants: [...activeRoom.participants, user],
-      messages: [...activeRoom.messages, systemMessage],
-    });
+    setActiveRoom(updatedRoom);
+    
+    // Update in saved rooms if it was found there
+    if (roomToJoin) {
+      setSavedRooms(prev => 
+        prev.map(room => room.id === updatedRoom.id ? updatedRoom : room)
+      );
+    }
     
     return true;
   };
@@ -201,10 +222,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timestamp: Date.now(),
     };
     
-    setActiveRoom({
+    const updatedRoom = {
       ...activeRoom,
       messages: [...activeRoom.messages, newMessage],
-    });
+    };
+    
+    setActiveRoom(updatedRoom);
+    
+    // Update in saved rooms if it exists there
+    const roomExistsInSaved = savedRooms.some(room => room.id === activeRoom.id);
+    if (roomExistsInSaved) {
+      setSavedRooms(prev => 
+        prev.map(room => room.id === activeRoom.id ? updatedRoom : room)
+      );
+    }
     
     return true;
   };
@@ -229,7 +260,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]
     };
     
-    setSavedRooms(prev => [...prev, endedRoom]);
+    setSavedRooms(prev => {
+      // Check if the room already exists in savedRooms
+      const exists = prev.some(room => room.id === endedRoom.id);
+      if (exists) {
+        // Update the existing room
+        return prev.map(room => room.id === endedRoom.id ? endedRoom : room);
+      } else {
+        // Add the new room
+        return [...prev, endedRoom];
+      }
+    });
+    
     setActiveRoom(null);
   };
   
@@ -249,11 +291,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSystem: true
       };
       
-      setActiveRoom({
+      const updatedRoom = {
         ...activeRoom,
         participants: activeRoom.participants.filter(p => p.id !== currentUser.id),
         messages: [...activeRoom.messages, systemMessage],
-      });
+      };
+      
+      setActiveRoom(updatedRoom);
+      
+      // Update in saved rooms if it exists there
+      const roomExistsInSaved = savedRooms.some(room => room.id === activeRoom.id);
+      if (roomExistsInSaved) {
+        setSavedRooms(prev => 
+          prev.map(room => room.id === activeRoom.id ? updatedRoom : room)
+        );
+      }
       
       setCurrentUser(null);
     }
