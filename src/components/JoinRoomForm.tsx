@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChat } from '@/contexts/ChatContext';
 import { useToast } from "@/components/ui/use-toast";
-import { Share, QrCode } from "lucide-react";
+import { Share } from "lucide-react";
 import { 
   Dialog,
   DialogContent,
@@ -16,44 +16,49 @@ import {
 } from "@/components/ui/dialog";
 
 const JoinRoomForm: React.FC = () => {
-  const [roomCode, setRoomCode] = useState('');
-  const [userName, setUserName] = useState('');
+  const [roomCode, setRoomCode] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
   const { joinRoom, activeRoom, savedRooms } = useChat();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!roomCode.trim() || !userName.trim()) {
+    // Basic validation
+    if (!roomCode.trim()) {
       toast({
         title: "Error",
-        description: "Room code and your name are required",
+        description: "Please enter a room code",
         variant: "destructive"
       });
       return;
     }
     
-    // Check if room exists in savedRooms
-    const formattedCode = roomCode.trim().toUpperCase();
-    const roomExists = savedRooms.some(room => room.code === formattedCode && !room.endedAt);
-    const isActiveRoomWithCode = activeRoom?.code === formattedCode && !activeRoom?.endedAt;
-    
-    if (!roomExists && !isActiveRoomWithCode) {
+    if (!userName.trim()) {
       toast({
         title: "Error",
-        description: "Room not found or already ended",
+        description: "Please enter your name",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (roomCode.trim().length !== 6) {
+      toast({
+        title: "Error",
+        description: "Room code must be 6 characters",
         variant: "destructive"
       });
       return;
     }
     
     // Attempt to join room
-    const success = joinRoom(formattedCode, userName);
+    const success = joinRoom(roomCode.trim().toUpperCase(), userName);
     
     if (!success) {
       toast({
         title: "Error",
-        description: "Could not join room. Your name might be taken or the room might be full.",
+        description: "Room not found or already ended",
         variant: "destructive"
       });
     }
