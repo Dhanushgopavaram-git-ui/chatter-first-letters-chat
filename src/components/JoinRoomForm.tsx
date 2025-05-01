@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChat } from '@/contexts/ChatContext';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Share } from "lucide-react";
 import { 
   Dialog,
@@ -24,8 +24,15 @@ const JoinRoomForm: React.FC = () => {
   const [joinError, setJoinError] = useState<string | null>(null);
   const { joinRoom, activeRoom, savedRooms } = useChat();
   const { toast } = useToast();
+  
+  // Clear previous errors when user starts typing
+  useEffect(() => {
+    if (joinError) {
+      setJoinError(null);
+    }
+  }, [roomCode, userName]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setJoinError(null);
     
@@ -57,18 +64,45 @@ const JoinRoomForm: React.FC = () => {
       return;
     }
 
-    // For debugging
-    console.log("Saved rooms before join attempt:", savedRooms);
+    // Format code to ensure consistency
+    const formattedCode = roomCode.trim().toUpperCase();
     
-    // Attempt to join room
-    const success = joinRoom(roomCode.trim().toUpperCase(), userName);
-    
-    if (!success) {
-      const errorMsg = "Room not found or already ended";
-      setJoinError(errorMsg);
+    try {
+      // Attempt to join room with a small delay to ensure localStorage sync
+      const success = joinRoom(formattedCode, userName.trim());
+      
+      if (!success) {
+        const errorMsg = "Room not found or already ended";
+        setJoinError(errorMsg);
+        toast({
+          title: "Error",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        
+        // For debugging
+        console.log("Join attempt failed with code:", formattedCode);
+        console.log("Available saved rooms:", savedRooms);
+        
+        // Check localStorage directly as a fallback
+        try {
+          const savedRoomsStr = localStorage.getItem('savedRooms');
+          if (savedRoomsStr) {
+            const allRooms = JSON.parse(savedRoomsStr);
+            console.log("All rooms from localStorage:", allRooms);
+            const matchingRoom = allRooms.find((r: any) => r.code === formattedCode && !r.endedAt);
+            console.log("Matching room from localStorage:", matchingRoom);
+          }
+        } catch (e) {
+          console.error("Error checking localStorage directly:", e);
+        }
+      }
+    } catch (error) {
+      console.error("Error joining room:", error);
+      setJoinError("An unexpected error occurred. Please try again.");
       toast({
         title: "Error",
-        description: errorMsg,
+        description: "Failed to join room. Please try again.",
         variant: "destructive"
       });
     }
@@ -127,6 +161,7 @@ const JoinRoomForm: React.FC = () => {
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               maxLength={6}
               required
+              autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
               Ask the room host for their 6-character code to join.
@@ -140,6 +175,7 @@ const JoinRoomForm: React.FC = () => {
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               required
+              autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
               You'll be identified by the first letter of your name.
