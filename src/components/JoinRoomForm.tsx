@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,15 +15,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 const JoinRoomForm: React.FC = () => {
   const [roomCode, setRoomCode] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+  const [joinError, setJoinError] = useState<string | null>(null);
   const { joinRoom, activeRoom, savedRooms } = useChat();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setJoinError(null);
     
     // Basic validation
     if (!roomCode.trim()) {
@@ -51,14 +56,19 @@ const JoinRoomForm: React.FC = () => {
       });
       return;
     }
+
+    // For debugging
+    console.log("Saved rooms before join attempt:", savedRooms);
     
     // Attempt to join room
     const success = joinRoom(roomCode.trim().toUpperCase(), userName);
     
     if (!success) {
+      const errorMsg = "Room not found or already ended";
+      setJoinError(errorMsg);
       toast({
         title: "Error",
-        description: "Room not found or already ended",
+        description: errorMsg,
         variant: "destructive"
       });
     }
@@ -100,6 +110,14 @@ const JoinRoomForm: React.FC = () => {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {joinError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{joinError}</AlertDescription>
+            </Alert>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="roomCode">Room Code</Label>
             <Input

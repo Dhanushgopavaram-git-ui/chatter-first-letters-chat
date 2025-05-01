@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 
@@ -85,7 +86,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Save rooms to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('savedRooms', JSON.stringify(savedRooms));
-  }, [savedRooms]); // Added savedRooms as dependency to ensure it updates when rooms change
+  }, [savedRooms]); 
 
   // Generate a display character from a name
   const getDisplayChar = (name: string, participants: User[]): string => {
@@ -138,6 +139,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Add new room to savedRooms as well
     setSavedRooms(prev => [...prev, newRoom]);
     
+    // Also store directly to localStorage to ensure immediate availability across tabs/windows
+    try {
+      const existingRooms = localStorage.getItem('savedRooms');
+      const parsedRooms = existingRooms ? JSON.parse(existingRooms) : [];
+      localStorage.setItem('savedRooms', JSON.stringify([...parsedRooms, newRoom]));
+    } catch (e) {
+      console.error('Failed to save room to localStorage', e);
+    }
+    
     return newRoom;
   };
 
@@ -148,15 +158,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Format code for consistency
     const formattedCode = code.trim().toUpperCase();
+    
+    // Get the latest rooms from localStorage
+    let latestRooms = [];
+    try {
+      const roomsFromStorage = localStorage.getItem('savedRooms');
+      if (roomsFromStorage) {
+        latestRooms = JSON.parse(roomsFromStorage);
+        // Update our state with the latest data
+        setSavedRooms(latestRooms);
+      }
+    } catch (e) {
+      console.error('Failed to get latest rooms from localStorage', e);
+    }
 
-    // Check if room exists in active room
+    // Check if room exists in active room or in the latest rooms from localStorage
     let targetRoom = null;
     
     if (activeRoom?.code === formattedCode && !activeRoom?.endedAt) {
       targetRoom = activeRoom;
     } else {
-      // Find the room with the given code in saved rooms
-      targetRoom = savedRooms.find(
+      // Find the room with the given code in saved rooms (using the latest data)
+      targetRoom = latestRooms.find(
+        (room: ChatRoom) => room.code === formattedCode && !room.endedAt
+      ) || savedRooms.find(
         room => room.code === formattedCode && !room.endedAt
       );
     }
@@ -165,7 +190,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!targetRoom || targetRoom.endedAt) {
       console.log('Room not found or already ended:', formattedCode);
       console.log('Active room:', activeRoom);
-      console.log('Saved rooms:', savedRooms);
+      console.log('Saved rooms from state:', savedRooms);
+      console.log('Latest rooms from localStorage:', latestRooms);
       return false;
     }
     
@@ -214,6 +240,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map(room => room.id === updatedRoom.id ? updatedRoom : room)
     );
     
+    // Also update localStorage directly
+    try {
+      const existingRooms = localStorage.getItem('savedRooms');
+      if (existingRooms) {
+        const parsedRooms = JSON.parse(existingRooms);
+        const updatedRooms = parsedRooms.map((room: ChatRoom) => 
+          room.id === updatedRoom.id ? updatedRoom : room
+        );
+        localStorage.setItem('savedRooms', JSON.stringify(updatedRooms));
+      }
+    } catch (e) {
+      console.error('Failed to update room in localStorage', e);
+    }
+    
     return true;
   };
 
@@ -244,6 +284,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSavedRooms(prev => 
       prev.map(room => room.id === activeRoom.id ? updatedRoom : room)
     );
+    
+    // Also update localStorage directly
+    try {
+      const existingRooms = localStorage.getItem('savedRooms');
+      if (existingRooms) {
+        const parsedRooms = JSON.parse(existingRooms);
+        const updatedRooms = parsedRooms.map((room: ChatRoom) => 
+          room.id === activeRoom.id ? updatedRoom : room
+        );
+        localStorage.setItem('savedRooms', JSON.stringify(updatedRooms));
+      }
+    } catch (e) {
+      console.error('Failed to update room in localStorage', e);
+    }
     
     return true;
   };
@@ -280,6 +334,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
     
+    // Also update localStorage directly
+    try {
+      const existingRooms = localStorage.getItem('savedRooms');
+      if (existingRooms) {
+        const parsedRooms = JSON.parse(existingRooms);
+        const exists = parsedRooms.some((room: ChatRoom) => room.id === endedRoom.id);
+        
+        let updatedRooms;
+        if (exists) {
+          updatedRooms = parsedRooms.map((room: ChatRoom) => 
+            room.id === endedRoom.id ? endedRoom : room
+          );
+        } else {
+          updatedRooms = [...parsedRooms, endedRoom];
+        }
+        
+        localStorage.setItem('savedRooms', JSON.stringify(updatedRooms));
+      }
+    } catch (e) {
+      console.error('Failed to update room in localStorage', e);
+    }
+    
     setActiveRoom(null);
     setCurrentUser(null); // Also clear currentUser when ending the room
   };
@@ -314,6 +390,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         prev.map(room => room.id === activeRoom.id ? updatedRoom : room)
       );
       
+      // Also update localStorage directly
+      try {
+        const existingRooms = localStorage.getItem('savedRooms');
+        if (existingRooms) {
+          const parsedRooms = JSON.parse(existingRooms);
+          const updatedRooms = parsedRooms.map((room: ChatRoom) => 
+            room.id === activeRoom.id ? updatedRoom : room
+          );
+          localStorage.setItem('savedRooms', JSON.stringify(updatedRooms));
+        }
+      } catch (e) {
+        console.error('Failed to update room in localStorage', e);
+      }
+      
       setCurrentUser(null);
     }
   };
@@ -337,3 +427,4 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </ChatContext.Provider>
   );
 };
+
