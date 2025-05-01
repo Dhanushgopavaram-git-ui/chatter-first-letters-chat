@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
-const SavedChats: React.FC = () => {
+interface SavedChatsListProps {
+  onViewTranscript?: (roomId: string) => void;
+}
+
+const SavedChatsList: React.FC<SavedChatsListProps> = ({ onViewTranscript }) => {
   const { savedRooms } = useChat();
 
   // Function to export chat as a file
@@ -47,10 +52,13 @@ const SavedChats: React.FC = () => {
 
   // Function to view a chat
   const viewChat = (roomId: string) => {
-    // This would be implemented to show a modal or navigate to a view of the chat
-    console.log("View chat", roomId);
-    // For now we'll just use an alert
-    alert("Chat viewing functionality coming soon!");
+    if (onViewTranscript) {
+      onViewTranscript(roomId);
+    } else {
+      // Fallback behavior when onViewTranscript is not provided
+      console.log("View chat", roomId);
+      alert("Chat viewing functionality coming soon!");
+    }
   };
 
   if (savedRooms.length === 0) {
@@ -134,4 +142,4 @@ const SavedChats: React.FC = () => {
   );
 };
 
-export default SavedChats;
+export default SavedChatsList;

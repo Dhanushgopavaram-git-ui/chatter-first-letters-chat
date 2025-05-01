@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { ChatProvider, useChat } from './contexts/ChatContext';
 import CreateRoomForm from './components/CreateRoomForm';
 import JoinRoomForm from './components/JoinRoomForm';
 import ChatRoom from './components/ChatRoom';
-import SavedChats from './components/SavedChats';
+import SavedChatsList from './components/SavedChatsList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -35,7 +36,7 @@ const AppContent: React.FC = () => {
       </div>
       
       <div className="md:col-span-2">
-        <SavedChats />
+        <SavedChatsList />
       </div>
     </div>
   );
