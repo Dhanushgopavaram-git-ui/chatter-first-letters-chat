@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChat } from '@/contexts/ChatContext';
 import { useToast } from "@/hooks/use-toast";
-import { Share } from "lucide-react";
+import { Share, QrCode } from "lucide-react";
 import { 
   Dialog,
   DialogContent,
@@ -17,11 +17,13 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import QRCode from 'qrcode.react';
 
 const JoinRoomForm: React.FC = () => {
   const [roomCode, setRoomCode] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [showQRScanner, setShowQRScanner] = useState<boolean>(false);
   const { joinRoom, activeRoom, savedRooms } = useChat();
   const { toast } = useToast();
   
@@ -68,33 +70,53 @@ const JoinRoomForm: React.FC = () => {
     const formattedCode = roomCode.trim().toUpperCase();
     
     try {
-      // Attempt to join room with a small delay to ensure localStorage sync
-      const success = joinRoom(formattedCode, userName.trim());
+      // Force reload rooms from localStorage before attempting to join
+      const existingRoomsStr = localStorage.getItem('savedRooms');
+      let roomFound = false;
       
-      if (!success) {
-        const errorMsg = "Room not found or already ended";
-        setJoinError(errorMsg);
-        toast({
-          title: "Error",
-          description: errorMsg,
-          variant: "destructive"
-        });
-        
-        // For debugging
-        console.log("Join attempt failed with code:", formattedCode);
-        console.log("Available saved rooms:", savedRooms);
-        
-        // Check localStorage directly as a fallback
+      if (existingRoomsStr) {
         try {
-          const savedRoomsStr = localStorage.getItem('savedRooms');
-          if (savedRoomsStr) {
-            const allRooms = JSON.parse(savedRoomsStr);
-            console.log("All rooms from localStorage:", allRooms);
-            const matchingRoom = allRooms.find((r: any) => r.code === formattedCode && !r.endedAt);
-            console.log("Matching room from localStorage:", matchingRoom);
+          const rooms = JSON.parse(existingRoomsStr);
+          // Direct check for room in localStorage
+          const room = rooms.find((r: any) => 
+            r.code === formattedCode && !r.endedAt
+          );
+          
+          if (room) {
+            roomFound = true;
+            console.log("Room found directly in localStorage:", room);
+            // Use the direct join method from context
+            const success = joinRoom(formattedCode, userName.trim());
+            
+            if (!success) {
+              setJoinError("Failed to join room. Please try again.");
+              toast({
+                title: "Error",
+                description: "Failed to join room. Please try again.",
+                variant: "destructive"
+              });
+            }
           }
         } catch (e) {
-          console.error("Error checking localStorage directly:", e);
+          console.error("Error parsing rooms from localStorage:", e);
+        }
+      }
+      
+      if (!roomFound) {
+        // Fall back to the context method
+        const success = joinRoom(formattedCode, userName.trim());
+        
+        if (!success) {
+          setJoinError("Room not found or already ended");
+          toast({
+            title: "Error",
+            description: "Room not found or already ended",
+            variant: "destructive"
+          });
+          
+          // For debugging
+          console.log("Join attempt failed with code:", formattedCode);
+          console.log("Available saved rooms:", savedRooms);
         }
       }
     } catch (error) {
@@ -134,12 +156,21 @@ const JoinRoomForm: React.FC = () => {
     }
   };
 
+  // Generate a QR code with the room information
+  const generateQRCodeData = (code: string) => {
+    return JSON.stringify({
+      type: "chatter-room",
+      code: code,
+      timestamp: Date.now()
+    });
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto animate-fade-in">
       <CardHeader>
         <CardTitle className="text-2xl text-center">Join a Chat Room</CardTitle>
         <CardDescription className="text-center">
-          Enter a room code to join an existing chat
+          Enter a room code or use QR code to join an existing chat
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -181,6 +212,38 @@ const JoinRoomForm: React.FC = () => {
               You'll be identified by the first letter of your name.
             </p>
           </div>
+          
+          {/* QR Code section */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" className="w-full flex gap-2">
+                <QrCode size={16} />
+                View Room QR Code
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Room QR Code</DialogTitle>
+                <DialogDescription>
+                  Scan this QR code to quickly join the room
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="p-3 bg-white rounded-lg">
+                  <QRCode 
+                    value={generateQRCodeData(roomCode || "NO_CODE")} 
+                    size={200} 
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+                <p className="mt-4 text-center text-sm">
+                  Room Code: <span className="font-mono font-bold">{roomCode || "Enter code first"}</span>
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
           {activeRoom && (
             <Dialog>
               <DialogTrigger asChild>

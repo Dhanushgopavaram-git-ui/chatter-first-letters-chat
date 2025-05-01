@@ -64,20 +64,34 @@ const generateRoomCode = (): string => {
     .toUpperCase();
 };
 
-// Helper function to get rooms from localStorage
+// Helper function to get rooms from localStorage with more robust error handling
 const getRoomsFromStorage = (): ChatRoom[] => {
   try {
     const roomsStr = localStorage.getItem('savedRooms');
-    return roomsStr ? JSON.parse(roomsStr) : [];
+    if (!roomsStr) return [];
+    
+    const parsed = JSON.parse(roomsStr);
+    if (!Array.isArray(parsed)) {
+      console.error('Saved rooms is not an array, resetting');
+      return [];
+    }
+    
+    return parsed;
   } catch (e) {
     console.error('Failed to parse saved rooms from localStorage', e);
+    // In case of corruption, clear the saved rooms
+    localStorage.removeItem('savedRooms');
     return [];
   }
 };
 
-// Helper function to save rooms to localStorage
+// Helper function to save rooms to localStorage with validation
 const saveRoomsToStorage = (rooms: ChatRoom[]): void => {
   try {
+    if (!Array.isArray(rooms)) {
+      console.error('Attempting to save non-array to localStorage', rooms);
+      return;
+    }
     localStorage.setItem('savedRooms', JSON.stringify(rooms));
   } catch (e) {
     console.error('Failed to save rooms to localStorage', e);
@@ -92,7 +106,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Load saved rooms from localStorage on mount
   useEffect(() => {
-    setSavedRooms(getRoomsFromStorage());
+    const rooms = getRoomsFromStorage();
+    setSavedRooms(rooms);
+    
+    // Debug logs
+    console.log('Loaded rooms from localStorage:', rooms);
   }, []);
 
   // Generate a display character from a name
@@ -110,7 +128,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return sameLetterCount > 0 ? `${firstLetter}${sameLetterCount + 1}` : firstLetter;
   };
 
-  // Create a new room
+  // Create a new room with improved localStorage handling
   const createRoom = (name: string, hostName: string): ChatRoom => {
     const hostId = nanoid();
     const roomId = nanoid();
@@ -143,31 +161,41 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(host);
     setActiveRoom(newRoom);
     
-    // Update savedRooms state
-    const updatedRooms = [...savedRooms, newRoom];
+    // Get the most up-to-date rooms
+    const currentRooms = getRoomsFromStorage();
+    const updatedRooms = [...currentRooms, newRoom];
+    
+    // Update state
     setSavedRooms(updatedRooms);
     
     // Save directly to localStorage 
     saveRoomsToStorage(updatedRooms);
     
+    // Log for debugging
+    console.log(`Created new room with code ${roomCode}`, newRoom);
+    console.log('Updated saved rooms:', updatedRooms);
+    
     return newRoom;
   };
 
-  // Join an existing room
+  // Join an existing room with robust error handling
   const joinRoom = (code: string, userName: string): boolean => {
     // Validate input parameters
-    if (!code || !userName || userName.trim().length === 0) return false;
+    if (!code || !userName || userName.trim().length === 0) {
+      console.log('Invalid inputs for joining room');
+      return false;
+    }
     
     // Format code for consistency
     const formattedCode = code.trim().toUpperCase();
+    console.log(`Attempting to join room with code: ${formattedCode}`);
     
-    // First, get the latest rooms directly from localStorage
+    // ALWAYS get the latest rooms directly from localStorage
     const latestRooms = getRoomsFromStorage();
+    console.log('Latest rooms from localStorage:', latestRooms);
     
-    // Also update our state with the latest data
-    if (latestRooms.length > 0) {
-      setSavedRooms(latestRooms);
-    }
+    // Update our state with the latest data
+    setSavedRooms(latestRooms);
 
     // Search for the room with multiple strategies
     let targetRoom = null;
@@ -175,26 +203,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Strategy 1: Check active room
     if (activeRoom?.code === formattedCode && !activeRoom?.endedAt) {
       targetRoom = activeRoom;
+      console.log('Found room in active room state');
     } 
-    // Strategy 2: Check latest rooms from localStorage
+    // Strategy 2: Check latest rooms from localStorage as primary source
     else {
       targetRoom = latestRooms.find(
         room => room.code === formattedCode && !room.endedAt
       );
-    }
-    // Strategy 3: Check savedRooms state as fallback
-    if (!targetRoom) {
-      targetRoom = savedRooms.find(
-        room => room.code === formattedCode && !room.endedAt
-      );
+      if (targetRoom) {
+        console.log('Found room in localStorage');
+      }
     }
     
     // If room doesn't exist or has ended
     if (!targetRoom || targetRoom.endedAt) {
       console.log('Room not found or already ended:', formattedCode);
-      console.log('Active room:', activeRoom);
-      console.log('Saved rooms from state:', savedRooms);
-      console.log('Latest rooms from localStorage:', latestRooms);
       return false;
     }
     
@@ -246,6 +269,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSavedRooms(updatedRooms);
     saveRoomsToStorage(updatedRooms);
     
+    console.log(`User ${displayChar} successfully joined room ${formattedCode}`);
     return true;
   };
 
